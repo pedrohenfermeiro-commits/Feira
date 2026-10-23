@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lista de compras</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --ink:#10261a; --muted:#5d7466; --paper:#f4f9f4; --card:#fff; --line:#d3e4d8;
+  --g900:#0d3b25; --g700:#17673c; --g500:#2e9e5b; --g200:#bfe5cd; --g100:#dff3e6;
+  --warn:#b3402a;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.4;padding-bottom:40px}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--g500);outline-offset:2px}
+.top{position:sticky;top:0;z-index:5;background:var(--g900);color:#fff;padding:14px 16px 12px}
+.top-in{max-width:760px;margin:0 auto;display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.top h1{margin:0;font-size:15px;font-weight:500;color:var(--g200)}
+.total{font-size:clamp(34px,9vw,52px);font-weight:800;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
+.stat{text-align:right;font-size:13px;color:var(--g200);font-variant-numeric:tabular-nums}
+.stat b{display:block;font-size:18px;color:#fff}
+main{max-width:760px;margin:0 auto;padding:16px}
+.seg{display:inline-flex;background:var(--g100);border-radius:999px;padding:4px;margin-bottom:14px}
+.seg button{border:0;background:transparent;padding:8px 18px;border-radius:999px;cursor:pointer;font-weight:500;color:var(--g700)}
+.seg button[aria-pressed=true]{background:var(--g700);color:#fff}
+.add{display:flex;gap:8px;margin-bottom:16px}
+.add input{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:11px 12px;min-width:0}
+.add .n{flex:1}.add .q{width:84px}
+.btn{border:0;background:var(--g700);color:#fff;border-radius:10px;padding:11px 16px;font-weight:700;cursor:pointer}
+.btn:hover{background:var(--g900)}
+.btn.ghost{background:#fff;color:var(--g700);border:1.5px solid var(--g500)}
+.btn.ghost:hover{background:var(--g100)}
+.item{background:var(--card);border:1.5px solid var(--line);border-left:6px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;transition:background .25s,border-color .25s}
+.item.done{background:var(--g100);border-color:var(--g200);border-left-color:var(--g500)}
+.item.off{opacity:.55}
+.item.off .nm{text-decoration:line-through}
+.head{display:flex;align-items:center;gap:10px}
+.tick{width:24px;height:24px;accent-color:var(--g700);flex:none;cursor:pointer}
+.nm{flex:1;font-weight:700;font-size:17px;min-width:0;overflow-wrap:anywhere}
+.plan{font-size:13px;color:var(--muted);white-space:nowrap}
+.plan input{width:58px;border:1.5px solid var(--line);border-radius:8px;padding:5px 6px;text-align:center}
+.it-total{font-weight:800;font-variant-numeric:tabular-nums;color:var(--g700);white-space:nowrap}
+.x{border:0;background:transparent;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:4px 6px;border-radius:6px}
+.x:hover{color:var(--warn);background:#fbeae6}
+.rows{margin-top:10px;display:grid;gap:8px}
+.row{display:grid;grid-template-columns:1fr 70px 92px 86px 26px;gap:6px;align-items:center}
+.row input{border:1.5px solid var(--line);background:#fff;border-radius:8px;padding:8px;min-width:0;width:100%}
+.row .rt{text-align:right;font-weight:500;font-variant-numeric:tabular-nums;font-size:14px}
+.row .sp{width:26px}
+.lbl{display:grid;grid-template-columns:1fr 70px 92px 86px 26px;gap:6px;font-size:12px;color:var(--muted)}
+.lbl span:nth-child(4){text-align:right}
+.more{margin-top:8px;border:0;background:transparent;color:var(--g700);font-weight:700;cursor:pointer;padding:4px 0}
+.more:hover{text-decoration:underline}
+.empty{text-align:center;color:var(--muted);padding:36px 12px;border:2px dashed var(--g200);border-radius:12px}
+.foot{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.foot .grow{flex:1}
+.note{font-size:12px;color:var(--muted);margin-top:14px}
+@media(max-width:560px){
+  .row{grid-template-columns:1fr 1fr 26px;grid-template-areas:"b b b" "q p x" "t t t"}
+  .row .b{grid-area:b}.row .q{grid-area:q}.row .p{grid-area:p}.row .rt{grid-area:t}.row .xx{grid-area:x}
+  .lbl{display:none}
+  .head{flex-wrap:wrap}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in">
+  <div><h1>Total da compra</h1><div class="total" id="grand" aria-live="polite">R$ 0,00</div></div>
+  <div class="stat"><b id="prog">0/0</b>itens comprados</div>
+</div></header>
+
+<main>
+  <div class="seg" role="group" aria-label="Modo">
+    <button id="m-plan" aria-pressed="true">Planejar</button>
+    <button id="m-shop" aria-pressed="false">Comprando</button>
+  </div>
+
+  <form class="add" id="addForm">
+    <input class="n" id="newName" placeholder="Item (ex.: Arroz)" aria-label="Nome do item" required>
+    <input class="q" id="newQty" placeholder="Qtd." inputmode="decimal" aria-label="Quantidade planejada" value="1">
+    <button class="btn" type="submit">Adicionar</button>
+  </form>
+
+  <div id="list"></div>
+
+  <div class="foot">
+    <button class="btn" id="pdf">Exportar PDF</button>
+    <button class="btn" id="xls">Exportar Excel</button>
+    <span class="grow"></span>
+    <button class="btn ghost" id="reset">Nova feira</button>
+  </div>
+  <p class="note">Tudo fica salvo neste navegador. “Nova feira” apaga só os valores comprados e mantém a lista. Desmarcar o tick tira o item do total e das exportações.</p>
+</main>
+
+<script>
+const KEY='lista-compras-v1';
+const uid=()=>Math.random().toString(36).slice(2,9);
+const newRow=()=>({id:uid(),brand:'',qty:'',price:''});
+let S=load();
+function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.items)return d}catch(e){}return{mode:'plan',items:[]}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+const num=v=>{v=String(v||'').trim();if(!v)return 0;if(v.includes(','))v=v.replace(/\./g,'').replace(',','.');const n=parseFloat(v);return isFinite(n)&&n>0?n:0};
+const brl=n=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rowTotal=r=>num(r.qty)*num(r.price);
+const itemTotal=it=>it.rows.reduce((a,r)=>a+rowTotal(r),0);
+const $=id=>document.getElementById(id);
+
+function summary(){
+  const act=S.items.filter(i=>i.on);
+  $('grand').textContent=brl(act.reduce((a,i)=>a+itemTotal(i),0));
+  $('prog').textContent=act.filter(i=>itemTotal(i)>0).length+'/'+act.length;
+}
+function rowHTML(it,r,i){
+  return `<div class="row" data-rid="${r.id}">
+    <input class="b" data-f="brand" value="${esc(r.brand)}" placeholder="${i?'Outra marca':'Marca (opcional)'}" aria-label="Marca">
+    <input class="q" data-f="qty" value="${esc(r.qty)}" placeholder="Qtd." inputmode="decimal" aria-label="Quantidade comprada">
+    <input class="p" data-f="price" value="${esc(r.price)}" placeholder="R$ unit." inputmode="decimal" aria-label="Valor unitário">
+    <div class="rt">${brl(rowTotal(r))}</div>
+    ${i?`<button class="x xx" data-act="del-row" aria-label="Remover marca">×</button>`:'<span class="sp xx"></span>'}
+  </div>`;
+}
+function itemHTML(it){
+  const shop=S.mode==='shop', t=itemTotal(it);
+  return `<article class="item${t>0?' done':''}${it.on?'':' off'}" data-id="${it.id}">
+    <div class="head">
+      <input type="checkbox" class="tick" data-act="tick" ${it.on?'checked':''} aria-label="Incluir ${esc(it.name)} na conta">
+      <div class="nm">${esc(it.name)}</div>
+      ${shop?`<span class="plan">pedido: ${esc(it.qty||'—')}</span><span class="it-total">${brl(t)}</span>`
+            :`<label class="plan">Qtd. <input data-f="plan" value="${esc(it.qty)}" inputmode="decimal" aria-label="Quantidade planejada"></label>`}
+      <button class="x" data-act="del-item" aria-label="Remover ${esc(it.name)}">×</button>
+    </div>
+    ${shop?`<div class="rows">
+      <div class="lbl"><span>Marca</span><span>Qtd.</span><span>Valor unit.</span><span>Total</span><span></span></div>
+      ${it.rows.map((r,i)=>rowHTML(it,r,i)).join('')}
+      <button class="more" data-act="add-row">+ Adicionar outra marca</button>
+    </div>`:''}
+  </article>`;
+}
+function render(){
+  $('m-plan').setAttribute('aria-pressed',S.mode==='plan');
+  $('m-shop').setAttribute('aria-pressed',S.mode==='shop');
+  $('addForm').style.display=S.mode==='plan'?'flex':'none';
+  $('list').innerHTML=S.items.length?S.items.map(itemHTML).join('')
+    :'<div class="empty">Sua lista está vazia. Adicione o primeiro item acima.</div>';
+  summary();
+}
+const find=id=>S.items.find(i=>i.id===id);
+
+$('addForm').addEventListener('submit',e=>{
+  e.preventDefault();
+  const name=$('newName').value.trim(); if(!name)return;
+  S.items.push({id:uid(),name,qty:$('newQty').value.trim()||'1',on:true,rows:[newRow()]});
+  $('newName').value='';$('newQty').value='1';$('newName').focus();
+  save();render();
+});
+$('m-plan').onclick=()=>{S.mode='plan';save();render()};
+$('m-shop').onclick=()=>{S.mode='shop';save();render()};
+
+$('list').addEventListener('input',e=>{
+  const f=e.target.dataset.f; if(!f)return;
+  const card=e.target.closest('.item'), it=find(card.dataset.id);
+  if(f==='plan'){it.qty=e.target.value;save();return}
+  const rowEl=e.target.closest('.row'), r=it.rows.find(x=>x.id===rowEl.dataset.rid);
+  r[f]=e.target.value; save();
+  rowEl.querySelector('.rt').textContent=brl(rowTotal(r));
+  const t=itemTotal(it);
+  card.querySelector('.it-total').textContent=brl(t);
+  card.classList.toggle('done',t>0);
+  summary();
+});
+$('list').addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]'); if(!b)return;
+  const card=b.closest('.item'), it=find(card.dataset.id), a=b.dataset.act;
+  if(a==='tick'){it.on=b.checked}
+  else if(a==='del-item'){S.items=S.items.filter(x=>x!==it)}
+  else if(a==='add-row'){it.rows.push(newRow())}
+  else if(a==='del-row'){it.rows=it.rows.filter(r=>r.id!==b.closest('.row').dataset.rid)}
+  save();render();
+  if(a==='add-row'){const c=document.querySelector(`[data-id="${it.id}"] .row:last-of-type .b`);c&&c.focus()}
+});
+$('reset').onclick=()=>{
+  if(!confirm('Apagar os valores comprados e começar uma nova feira? A lista de itens será mantida.'))return;
+  S.items.forEach(i=>{i.rows=[newRow()];i.on=true});save();render();
+};
+
+/* ---------- Exportação ---------- */
+function exportRows(){
+  const out=[];
+  S.items.filter(i=>i.on).forEach(it=>{
+    const bought=it.rows.filter(r=>num(r.qty)>0||num(r.price)>0);
+    if(!bought.length)out.push({item:it.name,plan:it.qty,brand:'',qty:0,price:0,total:0});
+    bought.forEach((r,i)=>out.push({item:i?'':it.name,plan:i?'':it.qty,brand:r.brand,qty:num(r.qty),price:num(r.price),total:rowTotal(r)}));
+  });
+  return out;
+}
+const grandTotal=()=>S.items.filter(i=>i.on).reduce((a,i)=>a+itemTotal(i),0);
+const stamp=()=>new Date().toISOString().slice(0,10);
+const clean=s=>s.replace(/\u00a0/g,' ');
+
+$('pdf').onclick=()=>{
+  if(!window.jspdf){alert('Biblioteca de PDF não carregou. Verifique a conexão e recarregue.');return}
+  const doc=new jspdf.jsPDF();
+  doc.setFontSize(16);doc.text('Lista de compras',14,16);
+  doc.setFontSize(10);doc.text(new Date().toLocaleDateString('pt-BR'),14,22);
+  const rows=exportRows().map(r=>[r.item,r.plan,r.brand,r.qty||'',r.price?clean(brl(r.price)):'',r.total?clean(brl(r.total)):'—']);
+  doc.autoTable({startY:28,head:[['Item','Planejado','Marca','Qtd.','Valor unit.','Total']],body:rows,
+    foot:[['','','','','Total geral',clean(brl(grandTotal()))]],
+    headStyles:{fillColor:[23,103,60]},footStyles:{fillColor:[13,59,37],textColor:255},
+    columnStyles:{3:{halign:'right'},4:{halign:'right'},5:{halign:'right'}},styles:{fontSize:10}});
+  doc.save(`lista-de-compras-${stamp()}.pdf`);
+};
+$('xls').onclick=()=>{
+  if(!window.XLSX){alert('Biblioteca de Excel não carregou. Verifique a conexão e recarregue.');return}
+  const data=exportRows();
+  const aoa=[['Item','Planejado','Marca','Qtd.','Valor unit.','Total']];
+  data.forEach((r,i)=>aoa.push([r.item,r.plan,r.brand,r.qty||null,r.price||null,{f:`D${i+2}*E${i+2}`}]));
+  aoa.push(['','','','','Total geral',{f:`SUM(F2:F${data.length+1})`}]);
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  for(let r=2;r<=data.length+2;r++){['E','F'].forEach(c=>{const x=ws[c+r];if(x)x.z='"R$" #,##0.00'})}
+  ws['!cols']=[{wch:28},{wch:11},{wch:20},{wch:8},{wch:13},{wch:13}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Compras');
+  XLSX.writeFile(wb,`lista-de-compras-${stamp()}.xlsx`);
+};
+render();
+</script>
+</body>
+</html>

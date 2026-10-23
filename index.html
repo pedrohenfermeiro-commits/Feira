@@ -95,6 +95,8 @@ main{max-width:760px;margin:0 auto;padding:16px}
   <div class="foot">
     <button class="btn" id="pdf">Exportar PDF</button>
     <button class="btn" id="xls">Exportar Excel</button>
+    <button class="btn ghost" id="imp">Importar Excel</button>
+    <input type="file" id="impFile" accept=".xlsx,.xls" hidden>
     <span class="grow"></span>
     <button class="btn ghost" id="reset">Nova feira</button>
   </div>
@@ -231,6 +233,36 @@ $('xls').onclick=()=>{
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Compras');
   XLSX.writeFile(wb,`lista-de-compras-${stamp()}.xlsx`);
 };
+/* ---------- Importação ---------- */
+const fmt=v=>typeof v==='number'?String(v).replace('.',','):String(v==null?'':v).trim();
+const money=v=>typeof v==='number'?(v?v.toFixed(2).replace('.',','):''):String(v==null?'':v).trim();
+$('imp').onclick=()=>$('impFile').click();
+$('impFile').addEventListener('change',async e=>{
+  const file=e.target.files[0]; e.target.value=''; if(!file)return;
+  if(!window.XLSX){alert('Biblioteca de Excel não carregou. Verifique a conexão e recarregue.');return}
+  try{
+    const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+    if(String((rows[0]||[])[0]).trim().toLowerCase()!=='item')throw new Error('formato');
+    const items=[];let cur=null;
+    for(const r of rows.slice(1)){
+      const [a,b,c,d,p]=r;
+      if(String(p).trim().toLowerCase()==='total geral')break;
+      const name=String(a).trim();
+      const hasData=[c,d,p].some(v=>v!=='');
+      if(name){cur={id:uid(),name,qty:fmt(b)||'1',on:true,rows:[]};items.push(cur)}
+      else if(!cur||!hasData)continue;
+      if(hasData||!cur.rows.length)cur.rows.push({id:uid(),brand:String(c).trim(),qty:fmt(d),price:money(p)});
+    }
+    if(!items.length){alert('Nenhum item encontrado no arquivo.');return}
+    if(S.items.length&&!confirm(`Importar ${items.length} itens e substituir a lista atual?`))return;
+    S.items=items;
+    S.mode=items.some(i=>itemTotal(i)>0)?'shop':'plan';
+    save();render();
+  }catch(err){
+    alert('Não consegui ler este arquivo. Use um .xlsx gerado pelo botão "Exportar Excel" desta página.');
+  }
+});
 render();
 </script>
 </body>
